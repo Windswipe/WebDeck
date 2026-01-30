@@ -451,10 +451,11 @@ def create_qt_app():
     def _open_web_gui():
         try:
             import webbrowser
-            webbrowser.open("https://windswipe.github.io/WebDeck/webDeckClient/?ip=127.0.0.1")
+            webbrowser.open("https://windswipe.github.io/WebDeck/webDeckClient?ip=localhost")
             print("[TRAY] Opened Web GUI in default browser.")
         except Exception as e:
             print(f"[TRAY] Failed to open Web GUI: {e}")
+    open_web_gui_action.triggered.connect(_open_web_gui)
     
     exit_action = menu.addAction("Exit WebDeck")
     exit_action.triggered.connect(lambda: sys.exit(0))
