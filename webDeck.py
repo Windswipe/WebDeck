@@ -153,6 +153,16 @@ class WebDeckHandler(BaseHTTPRequestHandler):
                     response = {"status": "error", "message": f"Failed to open URL: {e}"}
                     print(f"[SYSTEM] Failed to open URL: {e}")
                     send_notification("WebDeck", f"Failed to open URL: {url}", important=True)
+            elif action == "lock_screen":
+                try:
+                    os.system("rundll32.exe user32.dll,LockWorkStation")
+                    response = {"status": "success", "message": "Screen locked."}
+                    print(f"[SYSTEM] Screen locked.")
+                    send_notification("WebDeck", "Screen locked.", important=False)
+                except Exception as e:
+                    response = {"status": "error", "message": f"Failed to lock screen: {e}"}
+                    print(f"[SYSTEM] Failed to lock screen: {e}")
+                    send_notification("WebDeck", "Failed to lock screen.", important=True)
             else:
                 response = {"status": "error", "message": "Unknown action."}
                 send_notification("WebDeck", "Received unknown action.", important=True)
