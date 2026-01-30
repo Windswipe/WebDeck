@@ -720,8 +720,24 @@
             }
         }
 
-        // Start discovery on page load
-        window.addEventListener('load', () => {
+        // Start discovery on page load (supports ?ip=1.2.3.4)
+        window.addEventListener('load', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const ipParam = params.get('ip');
+            if (ipParam) {
+                updateConnectionStatus('scanning', `Trying ${ipParam}...`);
+                const address = await connectToIP(ipParam);
+                if (address) {
+                    await onServerConnected(address);
+                    return;
+                }
+                // Prefill the modal input with the ip param and show modal for user action
+                document.getElementById('serverIP').value = ipParam;
+                updateConnectionStatus('disconnected', 'Could not connect to provided IP');
+                showModal();
+                return;
+            }
+
             discoverAndConnect();
         });
     </script>

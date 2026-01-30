@@ -446,6 +446,15 @@ def create_qt_app():
             print(f"[TRAY] Failed to launch GUI process: {e}")
 
     launch_gui_action.triggered.connect(_launch_gui_process)
+
+    open_web_gui_action = menu.addAction("Open Web GUI")
+    def _open_web_gui():
+        try:
+            import webbrowser
+            webbrowser.open("https://windswipe.github.io/WebDeck/webDeckClient/?ip=127.0.0.1")
+            print("[TRAY] Opened Web GUI in default browser.")
+        except Exception as e:
+            print(f"[TRAY] Failed to open Web GUI: {e}")
     
     exit_action = menu.addAction("Exit WebDeck")
     exit_action.triggered.connect(lambda: sys.exit(0))
