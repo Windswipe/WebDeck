@@ -100,7 +100,7 @@ class WebDeckHandler(BaseHTTPRequestHandler):
                 "status": "online",
                 "message": "WebDeck server is online",
                 "hostname": hostname,
-                "port": 8000
+                "port": 8001
             }
             self.send_response(200)
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -177,7 +177,7 @@ class WebDeckHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(response).encode('utf-8'))
 
-def run(server_class=HTTPServer, handler_class=WebDeckHandler, port=8000):
+def run(server_class=HTTPServer, handler_class=WebDeckHandler, port=8001):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print(f'\n=== WebDeck Server v1.0 ===')

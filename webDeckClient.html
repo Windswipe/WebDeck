@@ -352,6 +352,18 @@
         </div>
     </div>
 
+    <div class="modal" id="securityWarningModal">
+        <div class="modal-content">
+            <h2>⚠️ Security Warning</h2>
+            <p>Network scanning may trigger security alerts on your device or router. Some antivirus software and firewalls may flag IP scanning as suspicious activity and could temporarily block or throttle the scan.</p>
+            <p><strong>Recommendation:</strong> If you know your server's IP address, use the manual entry method instead of scanning.</p>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="cancelScanBtn">Cancel</button>
+                <button class="modal-btn primary" id="confirmScanBtn">Continue Scanning</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>WebDeck Client</h1>
@@ -434,8 +446,8 @@
                 const lastHost = getCookie('webdeck_lasthost');
                 if (lastHost) {
                     updateConnectionStatus('scanning', `Trying last known host: ${lastHost}...`);
-                    if (await testConnection(`http://${lastHost}:8000`)) {
-                        return `http://${lastHost}:8000`;
+                    if (await testConnection(`http://${lastHost}:8001`)) {
+                        return `http://${lastHost}:8001`;
                     }
                     // Last known host is no longer active, clear it and prompt user
                     return null;
@@ -444,7 +456,7 @@
 
             // Always try localhost automatically
             updateConnectionStatus('scanning', 'Checking localhost...');
-            const localhostAddress = 'http://localhost:8000';
+            const localhostAddress = 'http://localhost:8001';
             if (await testConnection(localhostAddress)) {
                 setCookie('webdeck_lasthost', 'localhost');
                 return localhostAddress;
@@ -484,7 +496,7 @@
                 return;
             }
 
-            const address = `http://${ipAddress.trim()}:8000`;
+            const address = `http://${ipAddress.trim()}:8001`;
             updateConnectionStatus('scanning', `Trying ${ipAddress}...`);
             closeModal();
 
@@ -509,7 +521,7 @@
             for (const range of ranges) {
                 for (let i = 1; i <= Math.min(50, range.end); i++) {
                     const ip = [...range.start, i].join('.');
-                    addresses.push(`http://${ip}:8000`);
+                    addresses.push(`http://${ip}:8001`);
                 }
             }
             return addresses;
@@ -548,6 +560,7 @@
 
         // Modal management
         const modal = document.getElementById('connectionModal');
+        const securityWarningModal = document.getElementById('securityWarningModal');
 
         function showModal() {
             modal.classList.add('show');
@@ -558,15 +571,18 @@
             modal.classList.remove('show');
         }
 
+        function showSecurityWarning() {
+            securityWarningModal.classList.add('show');
+        }
+
+        function closeSecurityWarning() {
+            securityWarningModal.classList.remove('show');
+        }
+
         // Handle modal button clicks
-        document.getElementById('scanBtn').addEventListener('click', async () => {
-            const address = await scanNetwork();
-            if (address) {
-                await onServerConnected(address);
-            } else {
-                updateConnectionStatus('disconnected', 'Server not found - try again');
-                showModal();
-            }
+        document.getElementById('scanBtn').addEventListener('click', () => {
+            closeModal();
+            showSecurityWarning();
         });
 
         document.getElementById('connectBtn').addEventListener('click', async () => {
@@ -580,15 +596,27 @@
                     showModal();
                 }
             } else {
-                // If no IP entered, start scan
-                const address = await scanNetwork();
-                if (address) {
-                    await onServerConnected(address);
-                } else {
-                    updateConnectionStatus('disconnected', 'Server not found - try again');
-                    showModal();
-                }
+                // If no IP entered, show security warning before scanning
+                closeModal();
+                showSecurityWarning();
             }
+        });
+
+        // Handle security warning modal buttons
+        document.getElementById('confirmScanBtn').addEventListener('click', async () => {
+            closeSecurityWarning();
+            const address = await scanNetwork();
+            if (address) {
+                await onServerConnected(address);
+            } else {
+                updateConnectionStatus('disconnected', 'Server not found - try again');
+                showModal();
+            }
+        });
+
+        document.getElementById('cancelScanBtn').addEventListener('click', () => {
+            closeSecurityWarning();
+            showModal();
         });
 
         // Allow Enter key to submit in IP input
