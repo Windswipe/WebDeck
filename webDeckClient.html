@@ -376,6 +376,8 @@
 
     <script>
         let serverAddress = null;
+        let buttons = [];
+        let refreshInterval = null;
         const statusElement = document.getElementById('status');
         const deckElement = document.getElementById('deck');
         const bannerElement = document.getElementById('connectionBanner');
@@ -401,27 +403,52 @@
             return null;
         }
 
-        // Button configuration
-        const buttons = [
-            { label: 'Example action', icon: '🎬', action: 'example' },
-            { label: 'Open Notepad', icon: '🎵', action: 'open_app', path: 'C:\\Windows\\System32\\notepad.exe' },
-            { label: 'Mute/Unmute Sound', icon: '🎙️', action: 'toggle_mute' },
-            { label: 'Play/Pause Media', icon: '📹', action: 'pause_media' },
-            { label: 'Next/Skip Track', icon: '🔴', action: 'skip_track' },
-            { label: 'Previous Track', icon: '⏹️', action: 'previous_track' },
-            { label: 'Open ChatGPT', icon: '▶️', action: 'open_url', path: 'https://chat.openai.com/' },
-            { label: 'Lock Screen', icon: '⏸️', action: 'lock_screen' },
-            { label: 'Button 9', icon: '🔊', action: 'action_9' },
-            { label: 'Button 10', icon: '🔇', action: 'action_10' },
-            { label: 'Button 11', icon: '⬆️', action: 'action_11' },
-            { label: 'Button 12', icon: '⬇️', action: 'action_12' },
-            { label: 'Button 13', icon: '▶️', action: 'action_7' },
-            { label: 'Button 14', icon: '⏸️', action: 'action_8' },
-            { label: 'Button 15', icon: '🔊', action: 'action_9' },
-            { label: 'Button 16', icon: '🔇', action: 'action_10' },
-            { label: 'Button 17', icon: '⬆️', action: 'action_11' },
-            { label: 'Button 18', icon: '⬇️', action: 'action_12' }
-        ];
+        // Fetch button configuration from server
+        async function fetchButtonConfiguration() {
+            if (!serverAddress) return false;
+            
+            try {
+                const response = await fetch(`${serverAddress}/buttons`, {
+                    method: 'GET',
+                    signal: AbortSignal.timeout(5000)
+                });
+                
+                if (response.ok) {
+                    const newButtons = await response.json();
+                    // Only re-render if buttons have changed
+                    if (JSON.stringify(buttons) !== JSON.stringify(newButtons)) {
+                        buttons = newButtons;
+                        renderButtons();
+                    }
+                    return true;
+                }
+            } catch (error) {
+                console.error('Failed to fetch button configuration:', error);
+            }
+            return false;
+        }
+
+        // Start periodic button refresh
+        function startButtonRefresh(interval = 10000) {
+            // Clear existing interval if any
+            if (refreshInterval) clearInterval(refreshInterval);
+            
+            // Refresh immediately
+            fetchButtonConfiguration();
+            
+            // Then refresh periodically
+            refreshInterval = setInterval(() => {
+                fetchButtonConfiguration();
+            }, interval);
+        }
+
+        // Stop periodic button refresh
+        function stopButtonRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
 
         // Render buttons
         function renderButtons() {
@@ -632,7 +659,9 @@
             const host = address.split('://')[1];
             updateConnectionStatus('connected', `Connected to ${host}`);
             deckElement.classList.remove('disabled');
-            renderButtons();
+            // Fetch buttons from server and start refresh
+            await fetchButtonConfiguration();
+            startButtonRefresh(10000); // Refresh every 10 seconds
             console.log('Server connected:', address);
         }
 
@@ -658,11 +687,13 @@
                     showStatus(`Error: ${response.status} ✗`);
                     // Connection lost, restart discovery
                     serverAddress = null;
+                    stopButtonRefresh();
                     discoverAndConnect();
                 }
             } catch (error) {
                 showStatus('Connection lost ✗');
                 serverAddress = null;
+                stopButtonRefresh();
                 discoverAndConnect();
             }
         }
