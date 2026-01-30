@@ -204,6 +204,111 @@
             opacity: 1;
         }
 
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid #3700ff;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-content h2 {
+            color: white;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .modal-content p {
+            color: #aaa;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        .modal-input-group {
+            margin-bottom: 20px;
+        }
+
+        .modal-input-group label {
+            display: block;
+            color: #aaa;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .modal-input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #3700ff;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 1em;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        .modal-input-group input:focus {
+            outline: none;
+            border-color: #00eeff;
+        }
+
+        .modal-input-group input::placeholder {
+            color: #666;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: 2px solid #3700ff;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .modal-btn:hover {
+            background: #3700ff;
+            border-color: #00eeff;
+        }
+
+        .modal-btn.primary {
+            background: #3700ff;
+            border-color: #3700ff;
+        }
+
+        .modal-btn.primary:hover {
+            background: #5500ff;
+        }
+
         @media (max-width: 600px) {
             .deck {
                 grid-template-columns: repeat(4, 1fr);
@@ -229,6 +334,21 @@
         <div>
             <div>Scanning...</div>
             <div class="connection-details" id="connectionDetails"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="connectionModal">
+        <div class="modal-content">
+            <h2>Server Not Found</h2>
+            <p>Could not find the WebDeck server. Please enter the IP address or start a network scan.</p>
+            <div class="modal-input-group">
+                <label for="serverIP">Server IP Address (optional)</label>
+                <input type="text" id="serverIP" placeholder="e.g., 192.168.1.100" />
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="scanBtn">Scan Network</button>
+                <button class="modal-btn primary" id="connectBtn">Connect</button>
+            </div>
         </div>
     </div>
 
@@ -278,7 +398,7 @@
             { label: 'Next/Skip Track', icon: '🔴', action: 'skip_track' },
             { label: 'Previous Track', icon: '⏹️', action: 'previous_track' },
             { label: 'Open ChatGPT', icon: '▶️', action: 'open_url', path: 'https://chat.openai.com/' },
-            { label: 'Button 8', icon: '⏸️', action: 'action_8' },
+            { label: 'Lock Screen', icon: '⏸️', action: 'lock_screen' },
             { label: 'Button 9', icon: '🔊', action: 'action_9' },
             { label: 'Button 10', icon: '🔇', action: 'action_10' },
             { label: 'Button 11', icon: '⬆️', action: 'action_11' },
@@ -308,28 +428,37 @@
         }
 
         // Discover server on local network
-        async function discoverServer() {
-            updateConnectionStatus('scanning', 'Scanning local network...');
-
-            // Try last known host from cookies first
-            const lastHost = getCookie('webdeck_lasthost');
-            if (lastHost) {
-                updateConnectionStatus('scanning', `Trying last known host: ${lastHost}...`);
-                if (await testConnection(`http://${lastHost}:8000`)) {
-                    return `http://${lastHost}:8000`;
+        async function discoverServer(skipLastHost = false) {
+            // Try last known host from cookies first (unless explicitly skipped)
+            if (!skipLastHost) {
+                const lastHost = getCookie('webdeck_lasthost');
+                if (lastHost) {
+                    updateConnectionStatus('scanning', `Trying last known host: ${lastHost}...`);
+                    if (await testConnection(`http://${lastHost}:8000`)) {
+                        return `http://${lastHost}:8000`;
+                    }
+                    // Last known host is no longer active, clear it and prompt user
+                    return null;
                 }
             }
 
-            // Try localhost
+            // Always try localhost automatically
+            updateConnectionStatus('scanning', 'Checking localhost...');
             const localhostAddress = 'http://localhost:8000';
             if (await testConnection(localhostAddress)) {
                 setCookie('webdeck_lasthost', 'localhost');
                 return localhostAddress;
             }
 
-            // Get local IP range and scan
+            return null;
+        }
+
+        // Scan network for server
+        async function scanNetwork() {
+            updateConnectionStatus('scanning', 'Scanning local network...');
+            closeModal();
+
             try {
-                const response = await fetch('https://api.ipify.org?format=json', { mode: 'no-cors' });
                 // If localhost didn't work, try scanning common local IP ranges
                 const addresses = generateLocalIPs();
                 for (const address of addresses) {
@@ -345,6 +474,27 @@
                 // Continue with scanning
             }
 
+            return null;
+        }
+
+        // Connect to user-provided IP
+        async function connectToIP(ipAddress) {
+            if (!ipAddress.trim()) {
+                showStatus('Please enter an IP address');
+                return;
+            }
+
+            const address = `http://${ipAddress.trim()}:8000`;
+            updateConnectionStatus('scanning', `Trying ${ipAddress}...`);
+            closeModal();
+
+            if (await testConnection(address)) {
+                // Store the successful host in cookies
+                setCookie('webdeck_lasthost', ipAddress.trim());
+                return address;
+            }
+
+            showStatus('Could not connect to that IP address');
             return null;
         }
 
@@ -396,6 +546,58 @@
             detailsElement.textContent = details;
         }
 
+        // Modal management
+        const modal = document.getElementById('connectionModal');
+
+        function showModal() {
+            modal.classList.add('show');
+            document.getElementById('serverIP').focus();
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+        }
+
+        // Handle modal button clicks
+        document.getElementById('scanBtn').addEventListener('click', async () => {
+            const address = await scanNetwork();
+            if (address) {
+                await onServerConnected(address);
+            } else {
+                updateConnectionStatus('disconnected', 'Server not found - try again');
+                showModal();
+            }
+        });
+
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            const ipAddress = document.getElementById('serverIP').value;
+            if (ipAddress.trim()) {
+                const address = await connectToIP(ipAddress);
+                if (address) {
+                    await onServerConnected(address);
+                } else {
+                    updateConnectionStatus('disconnected', 'Connection failed - try again');
+                    showModal();
+                }
+            } else {
+                // If no IP entered, start scan
+                const address = await scanNetwork();
+                if (address) {
+                    await onServerConnected(address);
+                } else {
+                    updateConnectionStatus('disconnected', 'Server not found - try again');
+                    showModal();
+                }
+            }
+        });
+
+        // Allow Enter key to submit in IP input
+        document.getElementById('serverIP').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('connectBtn').click();
+            }
+        });
+
         // Handle successful connection
         async function onServerConnected(address) {
             serverAddress = address;
@@ -414,7 +616,7 @@
             }
 
             try {
-                const response = await fetch(`${serverAddress}/action`, {
+                const response = await fetch(`${serverAddress}/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -453,9 +655,9 @@
             if (address) {
                 await onServerConnected(address);
             } else {
-                updateConnectionStatus('disconnected', 'Server not found - retrying...');
-                // Retry discovery every 5 seconds
-                setTimeout(discoverAndConnect, 5000);
+                // No last host or it's inactive, show modal to prompt user
+                updateConnectionStatus('disconnected', 'Server not found');
+                showModal();
             }
         }
 
