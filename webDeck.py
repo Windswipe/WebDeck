@@ -70,8 +70,8 @@ def handle_media_control(action):
             keyboard_controller.release(Key.media_next)
             return {"status": "success", "message": "Skipped to next track."}
         elif action == "previous_track":
-            keyboard_controller.press(Key.media_prev)
-            keyboard_controller.release(Key.media_prev)
+            keyboard_controller.press(Key.media_previous)
+            keyboard_controller.release(Key.media_previous)
             return {"status": "success", "message": "Skipped to previous track."}
         else:
             return {"status": "error", "message": "Unknown media action."}
@@ -142,6 +142,17 @@ class WebDeckHandler(BaseHTTPRequestHandler):
                 else:
                     print(f"[MEDIA] {response['message']}")
                     send_notification("WebDeck", response['message'], important=True)
+            elif action == "open_url":
+                url = data.get("path")
+                try:
+                    os.startfile(url)
+                    response = {"status": "success", "message": f"Opened URL: {url}"}
+                    print(f"[SYSTEM] Opened URL: {url}")
+                    send_notification("WebDeck", f"Opened URL: {url}", important=False)
+                except Exception as e:
+                    response = {"status": "error", "message": f"Failed to open URL: {e}"}
+                    print(f"[SYSTEM] Failed to open URL: {e}")
+                    send_notification("WebDeck", f"Failed to open URL: {url}", important=True)
             else:
                 response = {"status": "error", "message": "Unknown action."}
                 send_notification("WebDeck", "Received unknown action.", important=True)
